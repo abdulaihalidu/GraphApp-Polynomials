@@ -1,0 +1,126 @@
+options {
+  DEBUG_PARSER = false;
+}
+
+PARSER_BEGIN(FuncParser)
+class FuncParser {
+ public static void main(String args[]) {
+  try {
+    Exp e = new FuncParser(System.in).Start();
+    System.out.println(e.tree());
+    System.out.println(e + "");
+    System.out.println("Result: " + e.eval());
+  }
+  catch (Exception en) {
+    System.out.println("Syntax error!");
+   }
+  }
+}
+PARSER_END(FuncParser)
+
+TOKEN : {
+   < PLUS: "+" >
+ | < MINUS: "-" >
+ | < TIMES: "*" >
+ | < DIVIDE: "/" >
+ | < POWER: "^" >
+ | < LPAR: "(" >
+ | < RPAR: ")" >
+ | < NUM: (["0"-"9"])+ >
+ | < SIN: "sin" >
+ | < COS: "cos" >
+ | < TAN: "tan" >
+ | < LN: "ln" >
+ | < LOG: "log" >
+ | < EULER: "exp" >
+ | < ABS: "abs" >
+ | < ID: (["a"-"z", "A"-"Z"])+ >
+}
+
+SKIP: {
+ " " | "\t" | "\n" | "\r" | "\r\n"
+}
+
+/*
+ E -> E + E
+ E -> E - E
+ E -> E * E
+ E -> E / E
+ E -> E ^ E
+ E -> num
+ E -> "(" E ")"
+
+ E -> (+|-)? T E2
+ E2 -> + T E2
+ E2 -> - T E2
+ E2 ->
+ T -> P T2
+ T2 -> * P T2
+ T2 -> / P T2
+ T2 ->
+ P -> F (^ P)?
+ F -> num | "(" E ")"
+
+ E -> T ((+|-) T)*
+ T -> P ((*|/) P)*
+ P -> F (^ P)?
+ F -> id | num | "(" E ")"
+ F -> "sin" "(" E ")"
+ F -> "cos" "(" E ")"
+ F -> "tan" "(" E ")"
+ F -> "ln" "(" E ")"
+ F -> "log" "(" E ")"
+ F -> "exp" "(" E ")"
+ F -> "abs" "(" E ")"
+*/
+
+Exp Start() :
+{ Exp e; }
+{
+  e=E() <EOF> { return e; }
+}
+
+Exp E() :
+{ Exp e, e2; int k = 1; }
+{
+( <PLUS> | <MINUS> { k = -1; })? 
+ e=T() { e = k > 0 ? e : new Times(e, new Num(-1)); }
+ (
+  <PLUS>  e2=T() { e=new Plus(e, e2);  }
+ | <MINUS> e2=T() { e=new Minus(e, e2); }
+ )*
+ { return e; }
+}
+
+Exp T() :
+{ Exp e, e2;}
+{
+ e=P()
+ (
+   <TIMES>  e2=P() { e=new Times(e, e2);  }
+ | <DIVIDE> e2=P() { e=new Divide(e, e2); }
+ )*
+ { return e; }
+}
+
+Exp P() :
+{ Exp e, e2; }
+{
+  e=F() ( <POWER> e2=P() { e=new Power(e, e2); })?
+  { return e; }
+}
+
+Exp F() :
+{ Exp e; Token t; }
+{
+   t=<ID> { return new Var(t.image); }
+ | t=<NUM> { return new Num(Integer.parseInt(t.image)); }
+ | <LPAR> e=E() <RPAR> { return e; }
+ | <SIN> <LPAR> e=E() <RPAR> { return new Sin(e); }
+ | <COS> <LPAR> e=E() <RPAR> { return new Cos(e); }
+ | <TAN> <LPAR> e=E() <RPAR> { return new Tan(e); }
+ | <LN> <LPAR> e=E() <RPAR> { return new Ln(e); }
+ | <LOG> <LPAR> e=E() <RPAR> { return new Log(e); }
+ | <EULER> <LPAR> e=E() <RPAR> { return new Euler(e); }
+ | <ABS> <LPAR> e=E() <RPAR> { return new Abs(e); }
+}
